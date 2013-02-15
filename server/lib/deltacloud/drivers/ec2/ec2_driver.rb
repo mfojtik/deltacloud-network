@@ -862,6 +862,22 @@ module Deltacloud
           end
         end
 
+        def subnets(credentials, opts={})
+
+        end
+
+        def create_subnet(credentials, opts={})
+
+        end
+
+        def destroy_subnet(credentials, opts={})
+
+        end
+
+        def ports(credentials, opts={})
+
+        end
+
         def providers(credentials, opts={})
           ec2 = new_client(credentials)
           @providers ||= ec2.describe_regions.map{|r| Provider.new( {:id=>r, :name=>r,
