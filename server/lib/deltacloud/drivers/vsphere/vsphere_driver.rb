@@ -341,6 +341,19 @@ module Deltacloud::Drivers::Vsphere
 
     alias :destroy_image :destroy_instance
 
+    def networks(credentials, opts={})
+      network_arr = list_networks(credentials).map { |n| convert_network(n) }
+      filter_on(network_arr, :id, opts)
+    end
+
+    def convert_network(vsphere_network)
+      Network.new(
+        :id => vsphere_network._ref,
+        :name => vsphere_network.name,
+        :state => vsphere_network.summary.accessible ? 'UP' : 'DOWN'
+      )
+    end
+
     exceptions do
 
       on /InvalidLogin/ do
