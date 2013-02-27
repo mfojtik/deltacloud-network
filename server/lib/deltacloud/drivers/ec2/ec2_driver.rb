@@ -835,6 +835,49 @@ module Deltacloud
           end
         end
 
+        #Deltacloud Networks == Amazon VPC
+        def networks(credentials, opts={})
+          ec2 = new_client(credentials)
+          networks=[]
+          safely do
+            ec2.describe_vpcs.each do |vpc|
+              networks << convert_vpc(vpc)
+            end
+          end
+          networks = filter_on(networks, :id, opts)
+        end
+
+        def create_network(credentials, opts={})
+          ec2 = new_client(credentials)
+          safely do
+            network = ec2.create_vpc(opts[:address_block]).first
+            convert_vpc(network)
+          end
+        end
+
+        def destroy_network(credentials, opts={})
+          ec2 = new_client(credentials)
+          safely do
+            ec2.delete_vpc(opts[:id])
+          end
+        end
+
+        def subnets(credentials, opts={})
+
+        end
+
+        def create_subnet(credentials, opts={})
+
+        end
+
+        def destroy_subnet(credentials, opts={})
+
+        end
+
+        def ports(credentials, opts={})
+
+        end
+
         def providers(credentials, opts={})
           ec2 = new_client(credentials)
           @providers ||= ec2.describe_regions.map{|r| Provider.new( {:id=>r, :name=>r,
@@ -1158,6 +1201,14 @@ module Deltacloud
               "STOPPED"
           end
         end
+
+        def convert_vpc(vpc)
+          Network.new({ :id => vpc[:vpc_id],
+                        :name => vpc[:vpc_id],
+                        :state=> vpc[:state],
+                        :address_block=> vpc[:cidr_block] })
+        end
+
 
         exceptions do
 
