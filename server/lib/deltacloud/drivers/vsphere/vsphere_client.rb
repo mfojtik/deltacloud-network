@@ -20,6 +20,16 @@ module Deltacloud::Drivers::VSphere
 
   module Helper
 
+    def list_datacenters(vsphere)
+      safely do
+        vsphere.serviceInstance.content.rootFolder.childEntity.grep(RbVmomi::VIM::Datacenter)
+      end
+    end
+
+    def list_networks(vsphere)
+      list_datacenters(vsphere).map { |dc| dc.networkFolder.children }.flatten
+    end
+
     # Find a VirtualMachine traversing through all Datastores and Datacenters
     #
     # This helper will return a Hash: { :datastore => NAME_OF_DS, :instance => VM }
@@ -29,9 +39,8 @@ module Deltacloud::Drivers::VSphere
     def find_vm(credentials, name)
       vsphere = new_client(credentials)
       safely do
-        rootFolder = vsphere.serviceInstance.content.rootFolder
         vm = {}
-        rootFolder.childEntity.grep(RbVmomi::VIM::Datacenter).each do |dc|
+        list_datacenters.each do |dc|
           dslist = list_datastores(dc.datastoreFolder)
           dslist.each do |datastore|
             vm[:instance] = datastore.vm.find { |x| x.name == name }
