@@ -473,6 +473,143 @@ module Deltacloud
           end
         end
 
+        def networks(credentials, opts={})
+          os = new_client(credentials, "network")
+          networks = []
+          safely do
+            os.networks.each do |net|
+              networks << convert_network(net)
+          end
+          networks
+        end
+
+        def convert_network(net)
+          Network.new({ :id => net.id,
+                        :name => net.name,
+                        :subnets => net.subnets,
+                        :state => (net.admin_state_up ? "UP" : "DOWN")
+                        #NOT USED :address_block, :ports
+          })
+        end
+
+        #require params for openstack: {:name}
+        def create_network(credentials, opts={})
+          os = new_client(credentials, "network")
+          safely do
+            os.create_network(opts[:name])
+          end
+        end
+
+        def destroy_network(credentials, network_id)
+          os = new_client(credentials, "network")
+          safely do
+            os.delete_network(opts[:id])
+          end
+        end
+
+        #can update name or admin_state_up (true/false)
+        def update_network(credentials, opts={})
+          os = new_client(credentials, "network")
+          safely do
+            os.update_network(opts)
+          end
+        end
+
+        #you can list all subnets - don't need to supply network_id
+        #each subnet returned 'knows' its parent network_id
+        #no opts - could use opts for filtering = e.g. ?name=foo
+        def subnets(credentials, opts={})
+          os = new_client(credentials, "network")
+          subnets = []
+          safely do
+            os.subnets.each do |subnet|
+              subnets << convert_subnet(subnet)
+            end
+          end
+        end
+
+        def convert_subnet(subnet)
+          Subnet.new({  :id => subnet.id,
+                        :name => subnet.name,
+                        :network => subnet.network_id,
+                        :address_block => subnet.cidr,  #or allocation_pools? start..end
+                        #  :ports :state :type
+                        # in quantum, ports have a 'network_id'
+          })
+        end
+
+        #required params:  :network_id, cidr_block
+        #optional params:  :ip_version, :gateway_ip, :allocation_pools
+        def create_subnet(credentials, opts={})
+          os = new_client(credentials, "network")
+          safely do
+            convert_subnet(os.create_subnet({:network_id => opts[:network_id], :cidr=> opts[:cidr]}))
+          end
+        end
+
+        #can update gateway_ip, name
+        def update_subnet(credentials, opts={})
+          os = new_client(credentials, "network")
+          safely do
+            os.update_subnet(
+          end
+
+        end
+
+        def destroy_subnet(credentials, subnet_id)
+          os = new_client(credentials, "network")
+          safely do
+            os.delete_subnet(subnet_id)
+          end
+        end
+
+        def ports(credentials, opts={})
+          os = new_client(credentials, "network")
+          ports = []
+          safely do
+            os.ports.each do |port|
+              ports << convert_port(port)
+            end
+          end
+          ports
+        end
+
+        def convert_port(port)
+          Port.new({  :id => port.id,
+                      :attachment => port.device_id,
+                      :network => port.network_id, #network, not subnet
+                      :mac_address => port.mac_address,
+                      :state => (port.admin_state_up ? "UP" : "DOWN" ), # true/false
+                      :ip_address => port.fixed_ips # this is a structure; like  [{"subnet_id": "f45087fa-a673-4c98-ba9e-e21642448997", "ip_address": "10.0.0.5"}] - COULD BE >1 address here...
+                      # UNUSED/no mapping for :type,  :attachment (can be inferred from IP address(es)?)
+          })
+        end
+
+        #required params: network_id
+        #optional params: name, mac_address, state, fixedIP (subnet_id AND/OR IP)
+        def create_port(credentials, opts={})
+          os = new_client(credentials, "network")
+          safely do
+            convert_port(os.create_port(opts))
+          end
+        end
+
+
+        #can update name, device_id, state (what else? not clear from API docs)
+        def update_port(credentials, opts={})
+          os = new_client(credentials, "network")
+          safely do
+            os.update_port(opts[:id], opts)
+          end
+        end
+
+        def destroy_port(credentials, port_id)
+          os = new_client(credentials, "network")
+          safely do
+            os.delete_port(port_id)
+          end
+        end
+
 private
         #for v2 authentication credentials.name == "username+tenant_name"
         def new_client(credentials, type="compute", ignore_provider=false)
