@@ -863,19 +863,47 @@ module Deltacloud
         end
 
         def subnets(credentials, opts={})
-
+          # Get the list of subnets
+          #
+          # as the gem describe the info
+          # we can get the informations of all the subnets defined
+          # calling describe_subnets without arguments
+          #ec2 = new_client(credentials)
+          #safely do
+          #  ec2.describe_subnets
+          #end
         end
 
         def create_subnet(credentials, opts={})
+          # this method should create the subnet
+          # what he needs is the id of the vpc
+          # and the cidr block you want to allocate
+          # and optionally the availability zone
+
+          #ec2 = new_client(credentials)
+          #safely do
+          #  ec2.create_subnet(opts[:vpc_id], opts[:cidr])
+          #end
 
         end
 
         def destroy_subnet(credentials, opts={})
+          # this method need to be called
+          # with the subnet_id as parameter
+          # in order to work
 
+          # ec2 = new_client(credentials)
+          # safely do
+          #  ec2.delete_subnet(opts[:vpc_id])
+          # end
+          # Subnet.delete(:name=>opts[:vpc_id])
+          #
         end
 
         def ports(credentials, opts={})
-
+          #
+          # Need more investigations
+          #
         end
 
         def providers(credentials, opts={})
