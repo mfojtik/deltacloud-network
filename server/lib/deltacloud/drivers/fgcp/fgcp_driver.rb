@@ -243,6 +243,85 @@ class FgcpDriver < Deltacloud::BaseDriver
   end
 
   ######################################################################
+  # Networks
+  ######################################################################
+  def networks(credentials, opts={})
+    opts ||= {}
+    safely do
+      client = new_client(credentials)
+
+      if opts[:id]
+        vsys_ids = [client.extract_vsys_id(opts[:id])]
+      else
+        xml = client.list_vsys['vsyss']
+        return [] if xml.nil?
+        vsys_ids = xml[0]['vsys'].collect { |vsys| vsys['vsysId'][0] }
+      end
+
+      vsys_ids.collect do |vsys_id|
+        begin
+          vsys = client.get_vsys_configuration(vsys_id)['vsys'][0]
+        rescue Exception => ex # cater for case where vsys was just destroyed since list_vsys call
+          raise ex if not ex.message =~ /RESOURCE_NOT_FOUND.*/
+        end
+
+        # retrieve network segment (subnet) info
+        vnets = vsys['vnets'][0]['vnet'].collect {|vnet| vnet['networkId'][0]}
+
+        Network.new(
+          :id            => vsys_id + '-N',
+          :name          => 'Network for ' + vsys['vsysName'][0].to_s,
+#          :address_block => '', # join of subnets'?
+          :subnets       => vnets,
+          :state         => 'STARTED' # base on FW status? (DEPLOYING, RUNNING, etc.)
+        )
+      end
+    end
+  end
+
+  def subnets(credentials, opts={})
+    opts ||= {}
+    subnets = []
+    safely do
+      client = new_client(credentials)
+
+      if opts[:id]
+        vsys_ids = [client.extract_vsys_id(opts[:id])]
+      else
+        xml = client.list_vsys['vsyss']
+        return [] if xml.nil?
+        vsys_ids = xml[0]['vsys'].collect { |vsys| vsys['vsysId'][0] }
+      end
+
+      subnets = vsys_ids.collect do |vsys_id|
+        begin
+          vsys = client.get_vsys_configuration(vsys_id)['vsys'][0]
+        rescue Exception => ex # cater for case where vsys was just destroyed since list_vsys call
+          raise ex if not ex.message =~ /RESOURCE_NOT_FOUND.*/
+        end
+
+        # retrieve network segment (subnet) info from fw
+        fw = vsys['vservers'][0]['vserver'].find {|v| v['vserverType'][0] == 'firewall'}
+        fw['vnics'][0]['vnic'].collect do |vnic|
+
+          subnet_name = vnic['networkId'][0].sub(/^.*\b(\w+)$/, "#{vsys['vsysName'][0]} [\\1]") # vsys name + network [DMZ/SECURE1/SECURE2]
+          Subnet.new(
+            :id            => vnic['networkId'][0],
+            :name          => subnet_name,
+            :network       => vsys_id + '-N',
+            :address_block => vnic['privateIp'][0].sub(/^((\d+\.){3}).*/, '\10/24'),
+            :type          => 'PRIVATE',
+            :state         => 'STARTED' # base on vsys status? (DEPLOYING, NORMAL, etc.)
+          )
+        end
+      end
+    end
+    subnets.flatten!
+    subnets.delete_if { |s| opts[:id] and opts[:id] != s.id }
+    subnets
+  end
+
+  ######################################################################
   # Instances
   ######################################################################
   def instances(credentials, opts={})
